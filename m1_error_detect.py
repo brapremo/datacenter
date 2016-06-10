@@ -42,7 +42,7 @@ import time
 
 # set global vars for the script
 now = time.asctime(time.localtime(time.time()))
-error_stat_filename='/bootflash/error_stats'
+output_filename='/bootflash/error_stats'
 
 def build_module_list():
     # build list of affected modules
@@ -78,7 +78,7 @@ def compare_counters(current_counters):
     first_run=False
     # load previous counters
     try:
-        old_counters = pickle.load(open(error_stat_filename+'.p','rb'))
+        old_counters = pickle.load(open(output_filename+'.p','rb'))
     except (IOError), e:
         first_run=True
 
@@ -98,9 +98,9 @@ def compare_counters(current_counters):
                 print("no previous stats for module {0}".format(module))
 
 def write_output(current_counters):
-    pickle.dump(current_counters,open(error_stat_filename+'.p','wb'))
+    pickle.dump(current_counters,open(output_filename+'.p','wb'))
 
-    with open(error_stat_filename+'.log','a') as f:
+    with open(output_filename+'.log','a') as f:
         f.write('\n---\n')
         f.write('{0}\n'.format(now))
         for k, v in current_counters.iteritems():
