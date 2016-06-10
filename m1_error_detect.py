@@ -1,17 +1,35 @@
 #!/usr/bin/env python
 # coding=utf-8
 
+r"""
+NEXUS 7000 CHECK IF ANY INSTALLED M1 MODULES ARE FAILED/FAILING
+
+This script is designed to run local on a Cisco Nexus 7000 switch
+with the goal of finding M1 linecards that have failed.
+There exists an issue where these cards fail silently and stop
+forwarding any traffic.
+In a failure scenario the module logs 'mstat_rx_pkts_bad_crc' asic
+errors.
+these counters can be cleared with the following command:
+'debug system internal clear-counters module <module>'
+"""
+
+#
+# LICENSE INFORMATION
+# ===
+# Copyright 2016 Brandon Premo
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-# implied. See the License for the specific language governing
-# permissions and limitations under the License.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 from cisco import *
@@ -21,28 +39,18 @@ import re
 import pickle
 import time
 
+
+# set global vars for the script
 now = time.asctime(time.localtime(time.time()))
-
 error_stat_filename='/bootflash/error_stats'
-
-
-example_error = ("4464 mstat_rx_pkts_bad_crc"
-                 "                         0000000000757285"
-                 "  10,12,14,16 –"
-                )
-
-
 
 def build_module_list():
     # build list of affected modules
     m1_cards=[]
-
     output1=cli('show module').split('\n')
-
     for line in output1:
         if 'N7K-M132XP' in line:
             m1_cards.append(line.split()[0])
-
     return m1_cards
 
 def get_serial(module):
@@ -55,19 +63,15 @@ def check_for_errors(module):
     error_dict=dict()
     command='show hardware internal error module'
     regex = ".* mstat_rx_pkts_bad_crc                         (.*)  .*"
-    output2=cli(command + ' ' + module).split('\n')
+    output=cli(command + ' ' + module).split('\n')
 
-    for line in output2:
+    for line in output:
         match = re.search(regex,line)
-
         if match and match.group(1):
             error_dict[module] = int(match.group(1))
         else:
             error_dict[module] = 0
-
     return error_dict
-
-        # "debug system internal clear-counters module 3"
 
 def compare_counters(current_counters):
     # compare current counter with previous
