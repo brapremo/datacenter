@@ -131,7 +131,7 @@ FP port |  PHYS | MAC_0 | MAC_1 | MAC_2 | RWR_0 | RWR_1 | L2LKP | L3LKP | QUEUE 
     output=output[20:len(output)-2]
 
     for line in output:
-        if line.split()[0] = first_port:
+        if line.split()[0] == first_port:
             asic = line.split()[2]
     return asic
 
