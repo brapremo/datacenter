@@ -42,7 +42,7 @@ import time
 debug = True
 
 if debug:
-    test_modules=[1]
+    test_modules=[1,2]
 
 
 # set global vars for the script
@@ -59,18 +59,21 @@ def build_module_list():
     return m1_cards
 
 def get_serial(module):
-    serial=clid('show module ' + module
+    if debug:
+        serial='XXXXXXXXXXX'
+    else:
+        serial=clid('show module ' + module
                )['TABLE_modmacinfo/serialnum/1']
     return serial
 
-def find_asic(module,ports):
+def get_asic(module,ports):
     first_port=ports.split(',')[0]
     command = ('slot {0} show hardware internal '
                'dev-port-map').format(module)
 
     if debug:
         output=(
-'''--------------------------------------------------------------
+    '''--------------------------------------------------------------
 CARD_TYPE:       32 port 10G
 >Front Panel ports:32
 --------------------------------------------------------------
@@ -123,8 +126,7 @@ FP port |  PHYS | MAC_0 | MAC_1 | MAC_2 | RWR_0 | RWR_1 | L2LKP | L3LKP | QUEUE 
    31      8       4       8       4       2       0       0       0       1       0
    32      7       3       7       3       1       1       0       0       0       0
 +-----------------------------------------------------------------------+
-+-----------------------------------------------------------------------+'''
-)
++-----------------------------------------------------------------------+'''.split('\n'))
     else:
         output=cli(command).split('\n')
 
@@ -144,20 +146,34 @@ def check_for_errors(module):
              "(.*)  (.*) -")
 
     if debug:
-        output=(
-'''4464 mstat_rx_pkts_bad_crc                         0000000000757233  10,12,14,16 –
-4464 mstat_rx_pkts_bad_crc                         0000000000135242  1,3,5,7 –
-4464 mstat_rx_pkts_bad_crc                         0000000001235115  2,4,6,8 –'''
-)   else:
+        #if module == '3':
+
+        output=('4464 mstat_rx_pkts_bad_crc                   '
+                '      0000000000757233  10,12,14,16 -\n'
+                '4464 mstat_rx_pkts_bad_crc                   '
+                '      0000000000135242  1,3,5,7 -\n'
+                ' Nothing Here\n'
+                '4464 mstat_rx_pkts_bad_crc                   '
+                '      0000000001235115  2,4,6,8 -').split('\n')
+    else:
         output=cli(command + ' ' + module).split('\n')
 
+    asic_error=dict()
     for line in output:
-        asic_error=dict()
+        if debug:
+            print('Line: {0}'.format(line))
         match = re.search(regex,line)
         if match and match.group(1) and match.group(2):
-            asic_error[match.group(2)] = (match.group(1))
-            error_dict[module] = asic_error
-    return error_dict
+            if debug:
+                print('found regex match')
+                print('adding value: {0} to key: {1}'.format(str(match.group(1)).strip('0'),match.group(2)))
+            asic_error[match.group(2)] = str(match.group(1)).strip('0')
+           # error_dict[module] = asic_error
+    #return error_dict
+    if len(asic_error.keys()) > 0:
+        return asic_error
+    else:
+        return
 
 def compare_counters(current_counters):
     # compare current counter with previous
@@ -192,17 +208,22 @@ def write_output(current_counters):
         f.write('{0}\n'.format(now))
         for k, v in current_counters.iteritems():
             serial=get_serial(str(k))
-            for l, w in k:
-                f.write(("Module {0} - {1}:\n"
-                         "ASIC {3} - Ports {4} - Errors:  {2}\n"
-                        ).format(k,serial,v,l,w))
+            f.write("Module {0} - {1}:\n".format(k,serial))
+            for l, w in v.iteritems():
+                asic=get_asic(k,l)
+                f.write(("ASIC {0} - Ports {1} - Errors:  {2:,}\n"
+                        ).format(asic,l,int(w)))
         f.flush()
 
 def main():
     # main function
+    error_stats=dict()
     if debug:
         for linecard in test_modules:
-            error_stats = check_for_errors(linecard)
+            error_stats[linecard] = check_for_errors(linecard)
+            if debug:
+                for k, v in error_stats[linecard].iteritems():
+                    print('k:{0} v:{1}'.format(k,v))
     else:
         for linecard in build_module_list():
             error_stats = check_for_errors(linecard)
