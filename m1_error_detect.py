@@ -203,19 +203,28 @@ def compare_counters(current_counters):
 
 def write_output(current_counters):
     pickle.dump(current_counters,open(output_filename+'.p','wb'))
+    log_exist = True
+    try:
+        with open(output_filename+'.log','r') as f:
+            data = f.read()
+    except (IOError), e:
+        log_exist = False
 
-    with open(output_filename+'.log','a') as f:
+    with open(output_filename+'.log','w') as f:
         f.write('\n---\n')
-        f.write('{0}\n'.format(now))
+        f.write('{0}'.format(now))
         for k, v in current_counters.iteritems():
             if v:
                 serial=get_serial(str(k))
-                f.write("Module {0} - {1}:\n".format(k,serial))
+                f.write("\n+ Module {0} | SN {1}:\n".format(k,serial))
                 for l, w in v.iteritems():
                     asic=get_asic(k,l)
-                    f.write(("ASIC {0} - Ports {1} - Errors:  {2}\n"
+                    f.write(("-- ASIC {0} - Ports {1} - Errors:  {2}\n"
                             ).format(asic,l,w))
         f.flush()
+        if log_exist:
+            f.write(data)
+            f.flush()
 
 def main():
     # main function
