@@ -42,7 +42,7 @@ import time
 debug = True
 
 if debug:
-    test_modules=[1,2]
+    test_modules=['1','2','3']
 
 
 # set global vars for the script
@@ -146,15 +146,16 @@ def check_for_errors(module):
              "(.*)  (.*) -")
 
     if debug:
-        #if module == '3':
-
-        output=('4464 mstat_rx_pkts_bad_crc                   '
-                '      0000000000757233  10,12,14,16 -\n'
-                '4464 mstat_rx_pkts_bad_crc                   '
-                '      0000000000135242  1,3,5,7 -\n'
-                ' Nothing Here\n'
-                '4464 mstat_rx_pkts_bad_crc                   '
-                '      0000000001235115  2,4,6,8 -').split('\n')
+        if module == '3':
+            output='\n'
+        else:
+            output=('4464 mstat_rx_pkts_bad_crc                   '
+                    '      0000000000757233  10,12,14,16 -\n'
+                    '4464 mstat_rx_pkts_bad_crc                   '
+                    '      0000000000135242  1,3,5,7 -\n'
+                    ' Nothing Here\n'
+                    '4464 mstat_rx_pkts_bad_crc                   '
+                    '      0000000001235115  2,4,6,8 -').split('\n')
     else:
         output=cli(command + ' ' + module).split('\n')
 
@@ -173,7 +174,7 @@ def check_for_errors(module):
     if len(asic_error.keys()) > 0:
         return asic_error
     else:
-        return
+        return False
 
 def compare_counters(current_counters):
     # compare current counter with previous
@@ -207,12 +208,13 @@ def write_output(current_counters):
         f.write('\n---\n')
         f.write('{0}\n'.format(now))
         for k, v in current_counters.iteritems():
-            serial=get_serial(str(k))
-            f.write("Module {0} - {1}:\n".format(k,serial))
-            for l, w in v.iteritems():
-                asic=get_asic(k,l)
-                f.write(("ASIC {0} - Ports {1} - Errors:  {2:,}\n"
-                        ).format(asic,l,int(w)))
+            if v:
+                serial=get_serial(str(k))
+                f.write("Module {0} - {1}:\n".format(k,serial))
+                for l, w in v.iteritems():
+                    asic=get_asic(k,l)
+                    f.write(("ASIC {0} - Ports {1} - Errors:  {2}\n"
+                            ).format(asic,l,w))
         f.flush()
 
 def main():
@@ -221,9 +223,6 @@ def main():
     if debug:
         for linecard in test_modules:
             error_stats[linecard] = check_for_errors(linecard)
-            if debug:
-                for k, v in error_stats[linecard].iteritems():
-                    print('k:{0} v:{1}'.format(k,v))
     else:
         for linecard in build_module_list():
             error_stats = check_for_errors(linecard)
