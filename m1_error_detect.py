@@ -39,10 +39,7 @@ import re
 import pickle
 import time
 
-debug = True
-
-if debug:
-    test_modules=['1','2','3']
+debug = False
 
 
 # set global vars for the script
@@ -59,11 +56,8 @@ def build_module_list():
     return m1_cards
 
 def get_serial(module):
-    if debug:
-        serial='XXXXXXXXXXX'
-    else:
-        serial=clid('show module ' + module
-               )['TABLE_modmacinfo/serialnum/1']
+    serial=clid('show module ' + module
+           )['TABLE_modmacinfo/serialnum/1']
     return serial
 
 def get_asic(module,ports):
@@ -71,64 +65,7 @@ def get_asic(module,ports):
     command = ('slot {0} show hardware internal '
                'dev-port-map').format(module)
 
-    if debug:
-        output=(
-    '''--------------------------------------------------------------
-CARD_TYPE:       32 port 10G
->Front Panel ports:32
---------------------------------------------------------------
- Device name             Dev role              Abbr num_inst:
---------------------------------------------------------------
-> Octopus                DEV_QUEUEING           QUEUE  2
-> Sotra                  DEV_REWRITE            RWR_1  2
-> Metropolis             DEV_REWRITE            RWR_0  4
-> Eureka                 DEV_LAYER_2_LOOKUP     L2LKP  1
-> Lamira                 DEV_LAYER_3_LOOKUP     L3LKP  1
-> R2D2                   DEV_ETHERNET_MAC       MAC_0  8
-> Santa-Cruz-Module      DEV_SWITCH_FABRIC      SWICHF 1
-> Ashburton              DEV_ETHERNET_MAC       MAC_2  8
-> Naxos                  DEV_ETHERNET_MAC       MAC_1  16
-> EDC                    DEV_PHY                PHYS   16
-+-----------------------------------------------------------------------+
-+----------------+++FRONT PANEL PORT TO ASIC INSTANCE MAP+++------------+
-+-----------------------------------------------------------------------+
-FP port |  PHYS | MAC_0 | MAC_1 | MAC_2 | RWR_0 | RWR_1 | L2LKP | L3LKP | QUEUE |SWICHF
-   1       15      7       15      7       3       0       0       0       1       0
-   2       0       0       0       0       0       1       0       0       0       0
-   3       15      7       15      7       3       0       0       0       1       0
-   4       0       0       0       0       0       1       0       0       0       0
-   5       14      7       14      7       3       0       0       0       1       0
-   6       1       0       1       0       0       1       0       0       0       0
-   7       14      7       14      7       3       0       0       0       1       0
-   8       1       0       1       0       0       1       0       0       0       0
-   9       13      6       13      6       3       0       0       0       1       0
-   10      2       1       2       1       0       1       0       0       0       0
-   11      13      6       13      6       3       0       0       0       1       0
-   12      2       1       2       1       0       1       0       0       0       0
-   13      12      6       12      6       3       0       0       0       1       0
-   14      3       1       3       1       0       1       0       0       0       0
-   15      12      6       12      6       3       0       0       0       1       0
-   16      3       1       3       1       0       1       0       0       0       0
-   17      11      5       11      5       2       0       0       0       1       0
-   18      4       2       4       2       1       1       0       0       0       0
-   19      11      5       11      5       2       0       0       0       1       0
-   20      4       2       4       2       1       1       0       0       0       0
-   21      10      5       10      5       2       0       0       0       1       0
-   22      5       2       5       2       1       1       0       0       0
-   23      10      5       10      5       2       0       0       0       1       0
-   24      5       2       5       2       1       1       0       0       0       0
-   25      9       4       9       4       2       0       0       0       1       0
-   26      6       3       6       3       1       1       0       0       0       0
-   27      9       4       9       4       2       0       0       0       1       0
-   28      6       3       6       3       1       1       0       0       0       0
-   29      8       4       8       4       2       0       0       0       1       0
-   30      7       3       7       3       1       1       0       0       0       0
-   31      8       4       8       4       2       0       0       0       1       0
-   32      7       3       7       3       1       1       0       0       0       0
-+-----------------------------------------------------------------------+
-+-----------------------------------------------------------------------+'''.split('\n'))
-    else:
-        output=cli(command).split('\n')
+    output=cli(command).split('\n')
 
     output=output[20:len(output)-2]
 
@@ -145,31 +82,16 @@ def check_for_errors(module):
     regex = (".* mstat_rx_pkts_bad_crc                         "
              "(.*)  (.*) -")
 
-    if debug:
-        if module == '3':
-            output='\n'
-        else:
-            output=('4464 mstat_rx_pkts_bad_crc                   '
-                    '      0000000000757233  10,12,14,16 -\n'
-                    '4464 mstat_rx_pkts_bad_crc                   '
-                    '      0000000000135242  1,3,5,7 -\n'
-                    ' Nothing Here\n'
-                    '4464 mstat_rx_pkts_bad_crc                   '
-                    '      0000000001235115  2,4,6,8 -').split('\n')
-    else:
-        output=cli(command + ' ' + module).split('\n')
+    output=cli(command + ' ' + module).split('\n')
 
     asic_error=dict()
     for line in output:
-        if debug:
-            print('Line: {0}'.format(line))
         match = re.search(regex,line)
         if match and match.group(1) and match.group(2):
             if debug:
                 print('found regex match')
                 print('adding value: {0} to key: {1}'.format(str(match.group(1)).strip('0'),match.group(2)))
             asic_error[match.group(2)] = str(match.group(1)).strip('0')
-           # error_dict[module] = asic_error
     #return error_dict
     if len(asic_error.keys()) > 0:
         return asic_error
@@ -200,16 +122,26 @@ def compare_counters(current_counters):
                 # to get here the module does not exist in previous
                 # output
                 print("no previous stats for module {0}".format(module))
+    else:
+        # here would mean this is the first time the script has run
+        return
 
 def write_output(current_counters):
+    # output serialized data from current scan
     pickle.dump(current_counters,open(output_filename+'.p','wb'))
+
+    # assume log file exists
     log_exist = True
+
+    # open and read contents of existing log file
     try:
         with open(output_filename+'.log','r') as f:
             data = f.read()
+    # catch if log file does not exist
     except (IOError), e:
         log_exist = False
 
+    # write out log file
     with open(output_filename+'.log','w') as f:
         f.write('\n---\n')
         f.write('{0}'.format(now))
@@ -222,6 +154,7 @@ def write_output(current_counters):
                     f.write(("-- ASIC {0} - Ports {1} - Errors:  {2}\n"
                             ).format(asic,l,w))
         f.flush()
+        # append old log file contents
         if log_exist:
             f.write(data)
             f.flush()
@@ -229,16 +162,10 @@ def write_output(current_counters):
 def main():
     # main function
     error_stats=dict()
-    if debug:
-        for linecard in test_modules:
-            error_stats[linecard] = check_for_errors(linecard)
-    else:
-        for linecard in build_module_list():
-            error_stats = check_for_errors(linecard)
-
+    for linecard in build_module_list():
+        error_stats = check_for_errors(linecard)
     if len(error_stats.keys()) > 0:
             compare_counters(error_stats)
-
     write_output(error_stats)
 
 if __name__ == '__main__':
